@@ -65,6 +65,37 @@ const mkCMC = () => ({
 // ═══════════════════════════════════════════════════════
 const STORE_KEY     = "ghafes_ministry_v2";
 const SETTINGS_KEY  = "ghafes_settings_v1";
+const UNLOCK_KEY     = "ghafes_unlocked_v1"; // sessionStorage — resets when the browser tab closes
+
+// ─── Staff-access gate ──────────────────────────────────────────
+// CMC Report, Zonal Report, and Google Sheets Settings are hidden from
+// everyone by default. Each is unlocked separately with its own password.
+// Passwords are never stored in plaintext — only their SHA-256 hash is
+// kept here, and the value typed in is hashed and compared to it.
+//
+// ⚠️ CHANGE THESE BEFORE GOING LIVE. To generate a new hash for a new
+// password, open any browser console and run:
+//   crypto.subtle.digest("SHA-256", new TextEncoder().encode("your-password"))
+//     .then(b=>console.log(Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("")))
+// then paste the printed hash below in place of the matching value.
+//
+// Placeholder passwords (CHANGE THESE): cmc-2026 / zonal-2026 / admin-2026
+const ACCESS_HASHES = {
+  cmc:    "da00da165ee8f23f3c05da976c21dfdd09d424ed19743e856b5a902598364209",
+  zonal:  "619474a9236b8743cc27d1d67d8f8b4baaac3421a0ad97ee02c9a7ac8a06b2b3",
+  sheets: "dea0eb2bfaf38042753851289edacfa858ce5117d17bc8bb6814dbce7119daaa",
+};
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function checkAccess(role,password){
+  if(!password) return false;
+  const hash = await sha256Hex(password);
+  return hash === ACCESS_HASHES[role];
+}
+function loadUnlocked(){ try{ return JSON.parse(sessionStorage.getItem(UNLOCK_KEY)||"{}"); }catch{ return {}; } }
+function saveUnlocked(u){ try{ sessionStorage.setItem(UNLOCK_KEY,JSON.stringify(u)); }catch{} }
 const rKey = (f,m,y) => `${f}||${m}||${y}`;
 
 async function loadData()    { try { const r = localStorage.getItem(STORE_KEY);    return r ? JSON.parse(r) : {}; } catch { return {}; } }
@@ -347,6 +378,73 @@ function doGet(){ return ContentService.createTextOutput("GHAFES Sync Active"); 
 // ═══════════════════════════════════════════════════════
 // SETTINGS MODAL
 // ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// STAFF ACCESS GATE — password-unlocks CMC / Zonal / Sheets Settings
+// ═══════════════════════════════════════════════════════
+function StaffGateModal({unlocked,onUnlock,onClose,onGoTo,T}){
+  const ROLES = [
+    {id:"cmc",    label:"CMC Report",           desc:"For Campus Ministry Coordinators"},
+    {id:"zonal",  label:"Zonal Report",         desc:"For Zonal Coordinators"},
+    {id:"sheets", label:"Google Sheets Settings", desc:"For the person managing the data sync"},
+  ];
+  const [pw,setPw]     = useState({cmc:"",zonal:"",sheets:""});
+  const [err,setErr]   = useState({});
+  const [busy,setBusy] = useState({});
+
+  const boxSt = { position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 };
+  const panelSt = { background:T.mode==="bright"?"#FFFFFF":"#0D1525",border:`1px solid ${T.border}`,borderRadius:16,width:"100%",maxWidth:440,boxShadow:"0 24px 80px rgba(0,0,0,0.5)" };
+
+  const attempt=async(role)=>{
+    setBusy(b=>({...b,[role]:true})); setErr(e=>({...e,[role]:""}));
+    const ok = await checkAccess(role,pw[role]);
+    setBusy(b=>({...b,[role]:false}));
+    if(ok){ onUnlock(role); onGoTo(role); }
+    else setErr(e=>({...e,[role]:"Incorrect password."}));
+  };
+
+  return <div style={boxSt} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+    <div style={panelSt}>
+      <div style={{background:"#1E3A6E",padding:"18px 24px",borderRadius:"16px 16px 0 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>🔒 Staff Access</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",marginTop:3}}>Enter the password for the area you need</div>
+        </div>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18,fontWeight:700,fontFamily:"inherit"}}>×</button>
+      </div>
+      <div style={{padding:22,display:"flex",flexDirection:"column",gap:16}}>
+        {ROLES.map(r=>{
+          const isUnlocked = unlocked[r.id];
+          return <div key={r.id} style={{border:`1px solid ${T.border}`,borderRadius:10,padding:"12px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:isUnlocked?0:8}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:T.text}}>{r.label}</div>
+                <div style={{fontSize:11,color:T.muted}}>{r.desc}</div>
+              </div>
+              {isUnlocked&&<span style={{fontSize:11,fontWeight:700,color:T.green,background:T.glow,padding:"3px 10px",borderRadius:20}}>✓ Unlocked</span>}
+            </div>
+            {!isUnlocked&&<>
+              <div style={{display:"flex",gap:8}}>
+                <input type="password" value={pw[r.id]} onChange={e=>setPw(p=>({...p,[r.id]:e.target.value}))}
+                  onKeyDown={e=>{if(e.key==="Enter")attempt(r.id);}}
+                  placeholder="Password" style={inpStyle(T,{flex:1})}/>
+                <button onClick={()=>attempt(r.id)} disabled={busy[r.id]} style={{
+                  background:T.mode==="bright"?"#1E3A6E":T.glow,border:`1.5px solid ${T.mode==="bright"?"#1E3A6E":T.green}`,
+                  color:T.mode==="bright"?"#fff":T.green,padding:"0 16px",borderRadius:8,fontSize:12.5,fontWeight:700,
+                  cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                  {busy[r.id]?"…":"Unlock"}
+                </button>
+              </div>
+              {err[r.id]&&<div style={{fontSize:11.5,color:"#DC2626",marginTop:6}}>{err[r.id]}</div>}
+            </>}
+            {isUnlocked&&<button onClick={()=>onGoTo(r.id)} style={{marginTop:8,background:"transparent",border:`1px solid ${T.border}`,color:T.text,padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Go to {r.label} →</button>}
+          </div>;
+        })}
+        <div style={{fontSize:10.5,color:T.sub,textAlign:"center"}}>Unlocked areas stay unlocked until you close this browser tab.</div>
+      </div>
+    </div>
+  </div>;
+}
+
 function SettingsModal({settings,onSave,onClose,T}){
   const [url,setUrl]   = useState(settings.scriptUrl||"");
   const [name,setName] = useState(settings.sheetName||"Ministry Reports");
@@ -1126,9 +1224,23 @@ function ZonalView({allReports,T}){
 // ═══════════════════════════════════════════════════════
 const VIEWS=[
   {id:"fellowship",label:"Fellowship Report",emoji:"📝",desc:"Weekly Reports by Campus Fellowships"},
+];
+const GATED_VIEWS=[
   {id:"cmc",       label:"CMC Report",       emoji:"📊",desc:"Campus Ministry Coordinator aggregated view"},
   {id:"zonal",     label:"Zonal Report",     emoji:"🌐",desc:"Zone-wide consolidated monthly report"},
 ];
+const ALL_VIEWS=[...VIEWS,...GATED_VIEWS];
+
+function RestrictedView({label,onUnlock,T}){
+  return <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{textAlign:"center",maxWidth:360}}>
+      <div style={{fontSize:40,marginBottom:10}}>🔒</div>
+      <div style={{fontSize:15,fontWeight:800,color:T.text,marginBottom:6}}>{label} is restricted</div>
+      <div style={{fontSize:12.5,color:T.muted,marginBottom:16,lineHeight:1.5}}>This area is only for authorised staff. Enter the password for {label} to continue.</div>
+      <button onClick={onUnlock} style={{background:T.mode==="bright"?"#1E3A6E":T.glow,border:`1.5px solid ${T.mode==="bright"?"#1E3A6E":T.green}`,color:T.mode==="bright"?"#fff":T.green,padding:"10px 22px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🔒 Staff Access</button>
+    </div>
+  </div>;
+}
 
 export default function App(){
   const [view,setView]         = useState("fellowship");
@@ -1138,6 +1250,15 @@ export default function App(){
   const [themeKey,setTheme]    = useState("bright");
   const [showSettings,setShowSettings] = useState(false);
   const [navOpen,setNavOpen]   = useState(false);
+  const [unlocked,setUnlocked] = useState(loadUnlocked);
+  const [showStaffGate,setShowStaffGate] = useState(false);
+
+  const handleUnlock=(role)=>setUnlocked(p=>{const n={...p,[role]:true};saveUnlocked(n);return n;});
+  const goToRole=(role)=>{
+    setShowStaffGate(false);
+    if(role==="sheets") setShowSettings(true);
+    else setView(role);
+  };
 
   const T = themeKey==="bright" ? BRIGHT : DARK;
 
@@ -1169,8 +1290,8 @@ export default function App(){
           </div>
         </div>
 
-        {/* Nav tabs */}
-        {VIEWS.map(v=>{
+        {/* Nav tabs — Fellowship is always public; CMC/Zonal only appear once unlocked this session */}
+        {[...VIEWS,...GATED_VIEWS.filter(v=>unlocked[v.id])].map(v=>{
           const active=view===v.id;
           return <button key={v.id} onClick={()=>setView(v.id)} className="nav-tab" title={v.label} style={{
             display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
@@ -1183,6 +1304,15 @@ export default function App(){
           </button>;
         })}
 
+        {/* Staff Access — the only way in for anyone not yet unlocked */}
+        <button onClick={()=>setShowStaffGate(true)} className="nav-tab" title="Staff Access (CMC / Zonal / Sheets)" style={{
+          display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
+          background:"transparent",borderBottom:"3px solid transparent",color:navMuted,
+          fontSize:13,fontWeight:500,fontFamily:"inherit",transition:"all .15s"}}>
+          <span style={{fontSize:16}}>🔒</span>
+          <span className="nav-tab-label">Staff Access</span>
+        </button>
+
         {/* Right controls */}
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,padding:"0 16px"}}>
           <div className="topbar-badges" style={{display:"flex",gap:6,fontSize:10}}>
@@ -1193,13 +1323,13 @@ export default function App(){
           <span className="topbar-savedcount" style={{fontSize:11,color:navMuted,marginLeft:4}}>
             <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
           </span>
-          <button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
+          {unlocked.sheets&&<button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
             background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
             border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
             color:settings?.scriptUrl?"#86EFAC":"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",
             fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
             {settings?.scriptUrl?"🔗":"⚙"} <span className="topbar-btn-label" style={{fontSize:11,fontWeight:600}}>{settings?.scriptUrl?"Sheets ✓":"Sheets"}</span>
-          </button>
+          </button>}
           <button onClick={()=>setTheme(t=>t==="dark"?"bright":"dark")} title="Toggle theme" style={{
             background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
             color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit",
@@ -1211,7 +1341,7 @@ export default function App(){
 
       {/* Sub-header */}
       <div className="desktop-subheader" style={{padding:"5px 18px 7px",borderTop:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.15)":T.border+"33"}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <span style={{fontSize:11,color:navMuted}}>{VIEWS.find(v=>v.id===view)?.desc}</span>
+        <span style={{fontSize:11,color:navMuted}}>{ALL_VIEWS.find(v=>v.id===view)?.desc}</span>
         <span style={{fontSize:10,color:navMuted,fontStyle:"italic"}}>{T.mode==="bright"?"☀ GHAFES Brand Theme":"🌙 Dark Theme"}</span>
       </div>
     </div>
@@ -1226,13 +1356,18 @@ export default function App(){
       ):(
         <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
           {view==="fellowship"&&<div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}><FellowshipView allReports={reps} onSave={handleSave} settings={settings} T={T}/></div>}
-          {view==="cmc"       &&<CMCView   allReports={reps} onSave={handleSave} settings={settings} T={T}/>}
-          {view==="zonal"     &&<ZonalView allReports={reps} T={T}/>}
+          {view==="cmc"&&(unlocked.cmc
+            ?<CMCView allReports={reps} onSave={handleSave} settings={settings} T={T}/>
+            :<RestrictedView label="CMC Report" onUnlock={()=>setShowStaffGate(true)} T={T}/>)}
+          {view==="zonal"&&(unlocked.zonal
+            ?<ZonalView allReports={reps} T={T}/>
+            :<RestrictedView label="Zonal Report" onUnlock={()=>setShowStaffGate(true)} T={T}/>)}
         </div>
       )}
     </div>
 
-    {showSettings&&<SettingsModal settings={settings} onSave={handleSaveSettings} onClose={()=>setShowSettings(false)} T={T}/>}
+    {showStaffGate&&<StaffGateModal unlocked={unlocked} onUnlock={handleUnlock} onClose={()=>setShowStaffGate(false)} onGoTo={goToRole} T={T}/>}
+    {showSettings&&unlocked.sheets&&<SettingsModal settings={settings} onSave={handleSaveSettings} onClose={()=>setShowSettings(false)} T={T}/>}
 
     <style>{`
       * { box-sizing:border-box; }
