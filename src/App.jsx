@@ -311,7 +311,7 @@ function YN({label,v,set,T}){
   </div>;
 }
 function Card({children,accent,style:st,T}){
-  return <div style={{background:T.card,border:`1px solid ${accent?accent+"55":T.border}`,
+  return <div className="app-card" style={{background:T.card,border:`1px solid ${accent?accent+"55":T.border}`,
     borderRadius:12,padding:"16px 18px",marginBottom:12,
     boxShadow:T.mode==="bright"?"0 1px 6px rgba(0,0,0,0.08)":"none",
     ...(accent&&{borderLeft:`3px solid ${accent}`}),...st}}>{children}</div>;
@@ -332,7 +332,7 @@ function StatCard({label,value,color,T}){
     <div style={{fontSize:10,color:T.muted,marginTop:4,textTransform:"uppercase",letterSpacing:"0.5px"}}>{label}</div>
   </div>;
 }
-function Grid({cols,gap=10,children}){ return <div style={{display:"grid",gridTemplateColumns:cols,gap}}>{children}</div>; }
+function Grid({cols,gap=10,children,style:st}){ return <div className="app-grid" style={{display:"grid",gridTemplateColumns:cols,gap,...st}}>{children}</div>; }
 
 // ═══════════════════════════════════════════════════════
 // APPS SCRIPT CODE (shown in settings)
@@ -890,9 +890,9 @@ function FellowshipView({allReports,onSave,settings,T}){
     </div>
 
     {/* Main */}
-    <div style={{flex:1,overflow:"auto",padding:"18px 22px",background:T.bg}}>
+    <div className="app-main" style={{flex:1,overflow:"auto",padding:"18px 22px",background:T.bg}}>
       {/* Header card */}
-      <div style={{background:T.mode==="bright"?"linear-gradient(135deg,#EBF5FF,#DBEAFE)":"linear-gradient(135deg,rgba(22,163,74,0.12),rgba(202,138,4,0.08))",
+      <div className="app-card" style={{background:T.mode==="bright"?"linear-gradient(135deg,#EBF5FF,#DBEAFE)":"linear-gradient(135deg,rgba(22,163,74,0.12),rgba(202,138,4,0.08))",
         border:`1px solid ${T.mode==="bright"?"#BFDBFE":T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:14,
         boxShadow:T.mode==="bright"?"0 2px 8px rgba(0,0,0,0.06)":"none"}}>
         <div style={{fontSize:11,fontWeight:800,color:T.mode==="bright"?"#1E3A6E":T.green,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>Report Header</div>
@@ -1024,7 +1024,7 @@ function CMCView({allReports,onSave,settings,T}){
 
   const th={textAlign:"left",padding:"8px",color:T.muted,borderBottom:`1px solid ${T.border}`,fontWeight:600,fontSize:10,textTransform:"uppercase",letterSpacing:"0.4px",whiteSpace:"nowrap"};
 
-  return <div style={{overflow:"auto",padding:"18px 22px",background:T.bg}}>
+  return <div className="app-main" style={{overflow:"auto",padding:"18px 22px",background:T.bg}}>
     <Card T={T} accent={T.mode==="bright"?"#1E3A6E":undefined}>
       <div style={{fontSize:11,fontWeight:800,color:T.mode==="bright"?"#1E3A6E":T.disc,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>CMC Staff Information</div>
       <Grid cols="1fr 1fr 1fr 1fr">
@@ -1157,7 +1157,7 @@ function ZonalView({allReports,T}){
 
   const th={textAlign:"left",padding:"6px 7px",color:T.muted,borderBottom:`1px solid ${T.border}`,fontWeight:600,fontSize:9.5,textTransform:"uppercase",letterSpacing:"0.4px",whiteSpace:"nowrap"};
 
-  return <div style={{overflow:"auto",padding:"18px 22px",background:T.bg}}>
+  return <div className="app-main" style={{overflow:"auto",padding:"18px 22px",background:T.bg}}>
     <div style={{background:T.mode==="bright"?"linear-gradient(135deg,#1E3A6E,#1D4ED8)":"linear-gradient(135deg,rgba(6,182,212,0.12),rgba(22,163,74,0.08))",border:`1px solid ${T.mode==="bright"?"#1E3A6E":T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:14}}>
       <div style={{fontSize:11,fontWeight:800,color:T.mode==="bright"?"rgba(255,255,255,0.8)":T.prog,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>Zone Consolidation View</div>
       <Grid cols="1fr 1fr 1fr">
@@ -1279,14 +1279,14 @@ export default function App(){
 
     {/* TOP BAR */}
     <div style={{background:navBg,borderBottom:`1px solid ${T.mode==="bright"?"#1E3A6E":T.border}`,flexShrink:0,zIndex:50}}>
-      <div style={{display:"flex",alignItems:"stretch"}}>
+      <div className="topbar-row" style={{display:"flex",alignItems:"stretch"}}>
 
         {/* Logo */}
-        <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 18px",borderRight:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.2)":T.border}`,minWidth:180}}>
+        <div className="topbar-logo" style={{display:"flex",alignItems:"center",gap:10,padding:"8px 18px",borderRight:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.2)":T.border}`,minWidth:180}}>
           <img src={LOGO} alt="GHAFES Logo" style={{width:40,height:40,objectFit:"contain",borderRadius:4,flexShrink:0}}/>
           <div>
             <div style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:"-0.3px",lineHeight:1}}>GHAFES</div>
-            <div style={{fontSize:10,color:T.mode==="bright"?"rgba(255,255,255,0.65)":"#7DB992",letterSpacing:"0.4px"}}>Ministry Reports</div>
+            <div className="topbar-tagline" style={{fontSize:10,color:T.mode==="bright"?"rgba(255,255,255,0.65)":"#7DB992",letterSpacing:"0.4px"}}>Ministry Reports</div>
           </div>
         </div>
 
@@ -1383,6 +1383,9 @@ export default function App(){
 
       /* ── Mobile: header stays, but shrinks to icon-only tabs and hides secondary chrome ── */
       @media (max-width: 720px) {
+        .topbar-row { flex-wrap:wrap; }
+        .topbar-logo { min-width:0!important; padding:6px 10px!important; }
+        .topbar-tagline { display:none; }
         .nav-tab { padding:0 12px!important; }
         .nav-tab-label { display:none; }
         .topbar-badges, .topbar-savedcount, .topbar-btn-label, .desktop-subheader { display:none!important; }
@@ -1394,6 +1397,17 @@ export default function App(){
           transform:translateX(-100%); transition:transform .2s ease; z-index:30;
         }
         .fv-sidebar.open { transform:translateX(0); }
+
+        /* Content padding — reclaim space on narrow screens */
+        .app-main { padding:12px 12px!important; }
+        .app-card { padding:12px 13px!important; }
+
+        /* Grids collapse to 2 columns on tablets/large phones, 1 on narrow phones */
+        .app-grid { grid-template-columns:repeat(2,1fr)!important; gap:8px!important; }
+      }
+
+      @media (max-width: 480px) {
+        .app-grid { grid-template-columns:1fr!important; }
       }
     `}</style>
   </div>;
