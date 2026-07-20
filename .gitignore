@@ -1,0 +1,19 @@
+# Dependencies — installed automatically, never commit these
+node_modules/
+
+# Build output — Vercel creates this during deployment
+dist/
+
+# Editor and OS junk
+.DS_Store
+Thumbs.db
+*.log
+.vscode/settings.json
+
+# Local environment variables (if you ever add them)
+.env
+.env.local
+.env.production
+
+# Vite cache
+.vite/
