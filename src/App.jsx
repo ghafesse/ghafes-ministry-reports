@@ -98,6 +98,28 @@ function totals(weeks) {
     memorization: ws.reduce((a,w)=>a+nv(w.pry.memorization),0),
   };
 }
+function weekStats(w){
+  w = w || {det:{},wit:{},cdf:{},pry:{}};
+  return {
+    membership:   nv(w.det.membership),
+    attendance:   nv(w.det.attendance),
+    awareness:    nv(w.wit.awareness),
+    exposure:     nv(w.wit.exposure),
+    converts:     nv(w.wit.converts),
+    numTrained:   nv(w.wit.numTrained),
+    cdfExisting:  nv(w.cdf.existing),
+    cdfAdded:     nv(w.cdf.added),
+    cdfMbr:       nv(w.cdf.totalMbr),
+    cdfMet:       nv(w.cdf.metWeek),
+    cdfPresent:   nv(w.cdf.present),
+    prayerEng:    nv(w.pry.engagements),
+    inPrayer:     nv(w.pry.inPrayer),
+    studsTrained: nv(w.pry.studsTrained),
+    dailyQT:      nv(w.pry.dailyQT),
+    sgbs:         nv(w.pry.sgbs),
+    memorization: nv(w.pry.memorization),
+  };
+}
 function sumTotals(items){
   const keys=["membership","attendance","awareness","exposure","converts","numTrained","cdfExisting","cdfAdded","cdfMbr","cdfMet","cdfPresent","prayerEng","inPrayer","studsTrained","dailyQT","sgbs","memorization"];
   return items.reduce((acc,t)=>{ if(!t)return acc; keys.forEach(k=>{acc[k]=(acc[k]||0)+(t[k]||0);}); return acc; },{});
@@ -568,7 +590,8 @@ const SECS = (T) => [
   {id:"lead", label:"Leadership",            color:T.lead, icon:"🏆"},
   {id:"prog", label:"Programs",              color:T.prog, icon:"🌐"},
   {id:"oth",  label:"Other Reports",         color:T.oth,  icon:"📋"},
-  {id:"sum",  label:"Monthly Summary",       color:T.green,icon:"📊"},
+  {id:"wsum", label:"Weekly Summary",        color:T.green,icon:"📊"},
+  {id:"msum", label:"Monthly Summary",       color:T.green,icon:"🗓"},
 ];
 
 // ═══════════════════════════════════════════════════════
@@ -712,6 +735,7 @@ function FellowshipView({allReports,onSave,settings,T}){
 
   const wkData=report.weeks[week];
   const T_val=totals(report.weeks);
+  const wk_val=weekStats(wkData);
   const sections=SECS(T);
   const filledWeeks=WEEKS.filter(w=>Object.values(report.weeks[w].det).some(Boolean));
 
@@ -779,9 +803,10 @@ function FellowshipView({allReports,onSave,settings,T}){
           <TIn label="Student Name" v={report.hdr.studentName} set={v=>updHdr("studentName",v)} ph="Your full name" T={T}/>
           <TIn label="Fellowship President" v={report.hdr.presidentName} set={v=>updHdr("presidentName",v)} ph="President's name" T={T}/>
         </Grid>
-        <Grid cols="1fr 1fr 1fr 1fr">
+        <Grid cols="1fr 1fr 1fr 1fr 1fr">
           <Sel label="Month" v={report.hdr.month} set={v=>updHdr("month",v)} opts={MONTHS} T={T}/>
           <Sel label="Year" v={report.hdr.year} set={v=>updHdr("year",v)} opts={YEARS} T={T}/>
+          <Sel label="Reporting Week" v={week} set={setWeek} opts={WEEKS} T={T}/>
           <Field label="Submission Date" T={T}><input type="date" value={report.hdr.subDate} onChange={e=>updHdr("subDate",e.target.value)} style={inpStyle(T)}/></Field>
           <TIn label="Special Program this Week" v={report.hdr.specialProg} set={v=>updHdr("specialProg",v)} ph="If any…" T={T}/>
         </Grid>
@@ -791,7 +816,7 @@ function FellowshipView({allReports,onSave,settings,T}){
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
           <span style={{fontSize:11.5,color:T.muted}}>Editing data for:</span>
           <span style={{background:T.mode==="bright"?"#DBEAFE":T.glow,color:T.mode==="bright"?"#1D4ED8":T.green,padding:"3px 12px",borderRadius:20,fontSize:12,fontWeight:700,border:`1px solid ${T.mode==="bright"?"#93C5FD":"transparent"}`}}>Week {week}</span>
-          <span style={{fontSize:11,color:T.sub}}>— switch weeks in the sidebar</span>
+          <span style={{fontSize:11,color:T.sub}}>— change it above in the header, or in the sidebar</span>
         </div>
       )}
 
@@ -803,8 +828,23 @@ function FellowshipView({allReports,onSave,settings,T}){
       {sec==="prog" &&<ProgSection zonalProg={report.zonalProg} majorProg={report.majorProg} programs={report.programs}
         setZonal={v=>setReport(p=>({...p,zonalProg:v}))} setMajor={v=>setReport(p=>({...p,majorProg:v}))} setProgs={v=>setReport(p=>({...p,programs:v}))} T={T}/>}
       {sec==="oth"  &&<OthSection  d={report.other} set={v=>setReport(p=>({...p,other:v}))} isCMC={false} T={T}/>}
-      {sec==="sum"  &&<>
-        <SecHead title="Monthly Summary (Auto-Computed)" color={T.green} icon="📊" T={T}/>
+      {sec==="wsum" &&<>
+        <SecHead title={`Weekly Summary — Week ${week} (Auto-Computed)`} color={T.green} icon="📊" T={T}/>
+        <Grid cols="repeat(4,1fr)" gap={8}>
+          {[["Membership",wk_val.membership,T.oth],["Total Attendance",wk_val.attendance,T.oth],["Gospel Exposure",wk_val.exposure,T.wit],["New Converts",wk_val.converts,T.wit]].map(([l,v,c])=><StatCard key={l} label={l} value={v} color={c} T={T}/>)}
+        </Grid>
+        <div style={{height:8}}/>
+        <Grid cols="repeat(4,1fr)" gap={8}>
+          {[["Prayer Engagements",wk_val.prayerEng,T.pry],["Involved in Prayer",wk_val.inPrayer,T.pry],["Daily Quiet Time",wk_val.dailyQT,T.pry],["CDF Meetings",wk_val.cdfMet,T.disc]].map(([l,v,c])=><StatCard key={l} label={l} value={v} color={c} T={T}/>)}
+        </Grid>
+        <div style={{height:8}}/>
+        <Grid cols="repeat(4,1fr)" gap={8}>
+          {[["CDF Members Present",wk_val.cdfPresent,T.disc],["Scripture Trained",wk_val.studsTrained,T.pry],["Small Group Bible Study",wk_val.sgbs,T.pry],["Scripture Memorization",wk_val.memorization,T.pry]].map(([l,v,c])=><StatCard key={l} label={l} value={v} color={c} T={T}/>)}
+        </Grid>
+      </>}
+      {sec==="msum" &&<>
+        <SecHead title="Monthly Summary — All Weeks Combined (Auto-Computed)" color={T.green} icon="🗓" T={T}/>
+        <div style={{fontSize:11.5,color:T.muted,marginBottom:12}}>Collates every reporting week entered so far for this fellowship into one monthly total.</div>
         <Grid cols="repeat(4,1fr)" gap={8}>
           {[["Membership",T_val.membership,T.oth],["Total Attendance",T_val.attendance,T.oth],["Gospel Exposure",T_val.exposure,T.wit],["New Converts",T_val.converts,T.wit]].map(([l,v,c])=><StatCard key={l} label={l} value={v} color={c} T={T}/>)}
         </Grid>
@@ -822,11 +862,23 @@ function FellowshipView({allReports,onSave,settings,T}){
       <div style={{display:"flex",alignItems:"center",gap:10,marginTop:18,paddingTop:16,borderTop:`1px solid ${T.border}`,justifyContent:"flex-end",flexWrap:"wrap"}}>
         {msg.text&&<span style={{fontSize:12.5,fontWeight:600,color:msg.ok?(T.mode==="bright"?"#15803D":T.green):"#DC2626"}}>{msg.text}</span>}
         {syncing&&<span style={{fontSize:12,color:T.muted,fontStyle:"italic"}}>Syncing…</span>}
+        {sec==="oth"&&(
+          <button onClick={async()=>{await handleSave();setSec("wsum");}} style={{display:"flex",alignItems:"center",gap:6,background:T.mode==="bright"?"#16A34A":T.glow,border:`1.5px solid ${T.green}`,color:T.mode==="bright"?"#fff":T.green,padding:"10px 22px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            ✅ Submit and View Summary
+          </button>
+        )}
+        {!["oth","wsum","msum"].includes(sec)&&(
+          <button onClick={async()=>{await handleSave();const order=sections.map(s=>s.id);setSec(order[order.indexOf(sec)+1]);}} style={{display:"flex",alignItems:"center",gap:6,background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"10px 22px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+            Next Section →
+          </button>
+        )}
         <button onClick={handleSave} style={{display:"flex",alignItems:"center",gap:6,background:T.mode==="bright"?"#1E3A6E":T.glow,border:`1.5px solid ${T.mode==="bright"?"#1E3A6E":T.green}`,color:T.mode==="bright"?"#fff":T.green,padding:"10px 22px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
           {settings?.scriptUrl?"💾 Save & Sync to Sheets":"💾 Save Report"}
         </button>
-        <button onClick={exportXLSX} style={{display:"flex",alignItems:"center",gap:6,background:T.discBg,border:`1.5px solid ${T.disc}55`,color:T.disc,padding:"10px 18px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📊 Export Excel</button>
-        <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"10px 18px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🖨 Print / PDF</button>
+        {["wsum","msum"].includes(sec)&&<>
+          <button onClick={exportXLSX} style={{display:"flex",alignItems:"center",gap:6,background:T.discBg,border:`1.5px solid ${T.disc}55`,color:T.disc,padding:"10px 18px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>📊 Export Excel</button>
+          <button onClick={()=>window.print()} style={{display:"flex",alignItems:"center",gap:6,background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"10px 18px",borderRadius:9,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>🖨 Print / PDF</button>
+        </>}
       </div>
     </div>
   </div>;
@@ -1073,7 +1125,7 @@ function ZonalView({allReports,T}){
 // MAIN APP
 // ═══════════════════════════════════════════════════════
 const VIEWS=[
-  {id:"fellowship",label:"Fellowship Report",emoji:"📝",desc:"Weekly/monthly input by campus presidents"},
+  {id:"fellowship",label:"Fellowship Report",emoji:"📝",desc:"Weekly Reports by Campus Fellowships"},
   {id:"cmc",       label:"CMC Report",       emoji:"📊",desc:"Campus Ministry Coordinator aggregated view"},
   {id:"zonal",     label:"Zonal Report",     emoji:"🌐",desc:"Zone-wide consolidated monthly report"},
 ];
