@@ -42,7 +42,7 @@ This is a **web application** (a website that works like an app) built for GHAFE
 - **Print to PDF** directly from the browser
 - **Sync to Google Sheets** automatically when you save
 - Works on phones, tablets, and computers
-- Two colour themes: **Dark** and **GHAFES Blue (Bright)**
+- Two colour themes: **GHAFES Blue (Bright)** (default) and **Dark**
 
 ---
 
@@ -223,6 +223,8 @@ npm install
 Then press **Enter**.
 
 You will see a lot of text scrolling — this is normal. It's downloading the packages. Wait until it stops (it could take 1–3 minutes depending on your internet speed). You will see something like `added 150 packages` when it's done.
+
+> ⚠️ **If `npm install` shows an xlsx/SheetJS error:** SheetJS (the Excel export library) stopped publishing to the regular npm registry after version `0.18.5`, so `package.json` points `xlsx` at SheetJS's own CDN tarball instead. If install still fails, delete `node_modules` and `package-lock.json` and run `npm install` again.
 
 ### Start the app:
 
@@ -407,7 +409,7 @@ This lets the app automatically save report data to a Google Spreadsheet when so
 1. Open the app link
 2. Make sure you're on the **📝 Fellowship Report** tab
 3. Fill in the **Report Header** at the top (fellowship name, your name, president's name, month)
-4. Use the **left sidebar** to switch between sections (Witness, Discipleship, Programs, etc.)
+4. Use the **left sidebar** to switch between sections (Witness, Discipleship, Programs, etc.). On a phone or narrow screen, this sidebar is hidden by default — tap the **☰** button in the top-left corner of the page to slide it open, and tap outside it to close
 5. Use the **"Week 1", "Week 2"** etc. buttons in the sidebar to enter data for each week
 6. Click **"Monthly Summary"** to see all your totals calculated automatically
 7. Click **"Save & Sync to Sheets"** (or "Save Report") when done
@@ -418,7 +420,7 @@ This lets the app automatically save report data to a Google Spreadsheet when so
 
 1. Click the **📊 CMC Report** tab
 2. Fill in your staff info at the top (name, station, month, books reading, devotional life)
-3. Select your **Zone** and **CMC Station** — the table automatically shows all your fellowships' data (pulled from submitted fellowship reports)
+3. Tick any combination of fellowships in the **Fellowships Coordinated by this CMC** checklist — a CMC is not limited to a fixed list. Optionally pick a **Zone** and **Sub-Zone**, then click **"+ Add Sub-Zone Group"** to quickly add that group's usual fellowships, and adjust from there. Use **Select All** / **Clear**, the search box, or the **×** next to a row to fine-tune your selection. The table automatically pulls in each selected fellowship's data (from submitted fellowship reports) for the chosen month
 4. Add your leadership programs, programs activities, and other CMC stats at the bottom
 5. Export to Excel or print when done
 
@@ -430,7 +432,7 @@ This lets the app automatically save report data to a Google Spreadsheet when so
 4. Export to Excel for the full zonal breakdown
 
 ### Theme toggle:
-- Click **☀ Light** or **🌙 Dark** in the top bar to switch between the dark theme and the GHAFES blue (bright) theme
+- The app opens in the **GHAFES blue (bright/light)** theme by default. Click **☀ Light** / **🌙 Dark** in the top bar to switch to the dark theme and back
 
 ---
 
@@ -512,7 +514,7 @@ Git was not installed correctly. Go back to **Step 2** and reinstall it. Restart
 |---|---|---|
 | **React 18** | JavaScript UI library | Powers the interactive interface |
 | **Vite 5** | Build tool | Compiles and bundles the app for deployment |
-| **SheetJS (xlsx)** | JavaScript library | Generates real Excel (.xlsx) files in the browser |
+| **SheetJS (xlsx)** | JavaScript library | Generates real Excel (.xlsx) files in the browser — installed from SheetJS's own CDN, since npm's registry is locked at an old version |
 | **Google Apps Script** | Google's scripting platform | Receives data and writes it to Google Sheets |
 | **Vercel** | Hosting platform | Publishes the app to the internet, free |
 | **GitHub** | Code storage | Stores the code and triggers Vercel deployments |

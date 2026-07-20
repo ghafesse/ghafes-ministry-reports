@@ -25,11 +25,11 @@ const LEVELS  = ["National","Zonal","Local"];
 
 const ZONES = {
   "South East Zone": [
-    { name:"CMC Station 1 (Korle-Bu)", fellowships:["CMF Korlebu","AHCF Korlebu","HCF Korlebu","CMF FH","CMF ACM"] },
-    { name:"CMC Station 2 (Legon)",    fellowships:["UCF Legon","GCF Legon","CMF AHCF","LCF GSL"] },
-    { name:"CMC Station 3 (UHAS)",     fellowships:["CMF UHAS","AHCF UHAS","GHAFES UHAS","PASAG CF UHAS"] },
-    { name:"CMC Station 4 (Satellite)",fellowships:["GHAFES PU","GHAFES UPSA","GHAFES Wisconsin","GHAFES RMUCF","GHAFES UCF City Campus"] },
-    { name:"CMC Station 5 (Others)",   fellowships:["GHAFES HTUCF","GHAFES VVU"] },
+    { name:"Sub-Zone 1 (Korle-Bu)", fellowships:["CMF Korlebu","AHCF Korlebu","HCF Korlebu","CMF FH","CMF ACM"] },
+    { name:"Sub-Zone 2 (Legon)",    fellowships:["UCF Legon","GCF Legon","CMF AHCF","LCF GSL"] },
+    { name:"Sub-Zone 3 (UHAS)",     fellowships:["CMF UHAS","AHCF UHAS","GHAFES UHAS","PASAG CF UHAS"] },
+    { name:"Sub-Zone 4 (Satellite)",fellowships:["GHAFES PU","GHAFES UPSA","GHAFES Wisconsin","GHAFES RMUCF","GHAFES UCF City Campus"] },
+    { name:"Sub-Zone 5 (Others)",   fellowships:["GHAFES HTUCF","GHAFES VVU"] },
   ]
 };
 
@@ -682,6 +682,7 @@ function FellowshipView({allReports,onSave,settings,T}){
   const [week,setWeek]=useState("1");
   const [msg,setMsg]=useState({text:"",ok:true});
   const [syncing,setSyncing]=useState(false);
+  const [sidebarOpen,setSidebarOpen]=useState(false);
 
   const updHdr=useCallback((f,v)=>setReport(p=>({...p,hdr:{...p.hdr,[f]:v}})),[]);
   const updWeek=useCallback((wk,s,val)=>setReport(p=>({...p,weeks:{...p.weeks,[wk]:{...p.weeks[wk],[s]:val}}})),[]);
@@ -717,16 +718,28 @@ function FellowshipView({allReports,onSave,settings,T}){
   const sidebarBg=T.mode==="bright"?"#1E3A6E":"rgba(0,0,0,0.25)";
   const sidebarText=T.mode==="bright"?"rgba(255,255,255,0.7)":"";
 
-  return <div style={{display:"flex",height:"100%",overflow:"hidden"}}>
+  return <div style={{display:"flex",height:"100%",overflow:"hidden",position:"relative"}}>
+
+    {/* Mobile toggle button for this sidebar */}
+    <button className="fv-sidebar-toggle" onClick={()=>setSidebarOpen(o=>!o)} style={{
+      display:"none",position:"absolute",top:10,left:10,zIndex:40,
+      background:sidebarBg,color:"#fff",border:`1px solid ${T.border}`,borderRadius:8,
+      padding:"7px 10px",cursor:"pointer",fontSize:15,fontFamily:"inherit"}}>
+      {sidebarOpen?"✕":"☰"}
+    </button>
+
+    {/* Overlay behind the sidebar on mobile */}
+    {sidebarOpen&&<div className="fv-sidebar-overlay" onClick={()=>setSidebarOpen(false)} style={{display:"none",position:"absolute",inset:0,background:"rgba(0,0,0,0.45)",zIndex:20}}/>}
+
     {/* Sidebar */}
-    <div style={{width:200,flexShrink:0,background:sidebarBg,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div className={"fv-sidebar"+(sidebarOpen?" open":"")} style={{width:200,flexShrink:0,background:sidebarBg,borderRight:`1px solid ${T.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"14px 10px",flex:1,overflowY:"auto"}}>
         <div style={{fontSize:9.5,color:T.mode==="bright"?"rgba(255,255,255,0.5)":T.muted,textTransform:"uppercase",letterSpacing:"1px",marginBottom:8,padding:"0 4px"}}>Sections</div>
         {sections.map(s=>{
           const active=sec===s.id;
           const textCol=T.mode==="bright"?(active?"#fff":"rgba(255,255,255,0.65)"):( active?s.color:T.muted);
           const bg=T.mode==="bright"?(active?"rgba(255,255,255,0.15)":"transparent"):(active?`${s.color}18`:"transparent");
-          return <button key={s.id} onClick={()=>setSec(s.id)} style={{
+          return <button key={s.id} onClick={()=>{setSec(s.id);setSidebarOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",
             padding:"8px 10px",borderRadius:7,marginBottom:2,cursor:"pointer",border:"none",
             background:bg,color:textCol,fontSize:12.5,fontWeight:active?700:400,
@@ -740,7 +753,7 @@ function FellowshipView({allReports,onSave,settings,T}){
         {WEEKS.map(w=>{
           const active=week===w;
           const filled=filledWeeks.includes(w);
-          return <button key={w} onClick={()=>setWeek(w)} style={{
+          return <button key={w} onClick={()=>{setWeek(w);setSidebarOpen(false);}} style={{
             display:"flex",alignItems:"center",gap:8,width:"100%",textAlign:"left",
             padding:"7px 10px",borderRadius:7,marginBottom:2,cursor:"pointer",border:"none",
             background:T.mode==="bright"?(active?"rgba(255,255,255,0.2)":"transparent"):(active?`${T.green}18`:"transparent"),
@@ -886,8 +899,8 @@ function CMCView({allReports,onSave,settings,T}){
       {/* Optional preset loader */}
       <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",background:T.mode==="bright"?"#F8FAFC":"rgba(255,255,255,0.03)",borderRadius:10,border:`1px dashed ${T.border}`}}>
         <div style={{flex:"1 1 140px"}}><Sel label="Zone" v={zone} set={z=>{setZone(z);setStation(ZONES[z][0].name);}} opts={Object.keys(ZONES)} mb={0} T={T}/></div>
-        <div style={{flex:"1 1 160px"}}><Sel label="Station Preset" v={station} set={setStation} opts={(ZONES[zone]||[]).map(s=>s.name)} mb={0} T={T}/></div>
-        <button onClick={loadPreset} style={{background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ Add Preset Group</button>
+        <div style={{flex:"1 1 160px"}}><Sel label="Sub-Zone" v={station} set={setStation} opts={(ZONES[zone]||[]).map(s=>s.name)} mb={0} T={T}/></div>
+        <button onClick={loadPreset} style={{background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ Add Sub-Zone Group</button>
         <button onClick={selectAll} style={{background:"transparent",border:`1.5px solid ${T.border}`,color:T.muted,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Select All</button>
         <button onClick={clearAll} style={{background:"transparent",border:`1.5px solid ${T.border}`,color:T.muted,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Clear</button>
       </div>
@@ -1093,7 +1106,7 @@ export default function App(){
 
     {/* TOP BAR */}
     <div style={{background:navBg,borderBottom:`1px solid ${T.mode==="bright"?"#1E3A6E":T.border}`,flexShrink:0,zIndex:50}}>
-      <div className="topbar-row" style={{display:"flex",alignItems:"stretch"}}>
+      <div style={{display:"flex",alignItems:"stretch"}}>
 
         {/* Logo */}
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 18px",borderRight:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.2)":T.border}`,minWidth:180}}>
@@ -1102,59 +1115,50 @@ export default function App(){
             <div style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:"-0.3px",lineHeight:1}}>GHAFES</div>
             <div style={{fontSize:10,color:T.mode==="bright"?"rgba(255,255,255,0.65)":"#7DB992",letterSpacing:"0.4px"}}>Ministry Reports</div>
           </div>
-
-          {/* Hamburger — only shown on narrow/mobile viewports via CSS */}
-          <button className="hamburger-btn" onClick={()=>setNavOpen(o=>!o)} aria-label="Toggle menu" style={{
-            marginLeft:"auto",display:"none",background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
-            color:"#fff",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit"}}>
-            {navOpen?"✕":"☰"}
-          </button>
         </div>
 
-        {/* Nav tabs + right controls — collapsible as a group on mobile */}
-        <div className={"nav-collapsible"+(navOpen?" open":"")} style={{display:"flex",alignItems:"stretch",flex:1}}>
-          {VIEWS.map(v=>{
-            const active=view===v.id;
-            return <button key={v.id} onClick={()=>{setView(v.id);setNavOpen(false);}} style={{
-              display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
-              background:"transparent",
-              borderBottom:active?`3px solid ${T.mode==="bright"?"#56C8E8":"#16A34A"}`:"3px solid transparent",
-              color:active?"#fff":navMuted,
-              fontSize:13,fontWeight:active?700:500,fontFamily:"inherit",transition:"all .15s"}}>
-              <span style={{fontSize:16}}>{v.emoji}</span>
-              <span>{v.label}</span>
-            </button>;
-          })}
+        {/* Nav tabs */}
+        {VIEWS.map(v=>{
+          const active=view===v.id;
+          return <button key={v.id} onClick={()=>setView(v.id)} className="nav-tab" title={v.label} style={{
+            display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
+            background:"transparent",
+            borderBottom:active?`3px solid ${T.mode==="bright"?"#56C8E8":"#16A34A"}`:"3px solid transparent",
+            color:active?"#fff":navMuted,
+            fontSize:13,fontWeight:active?700:500,fontFamily:"inherit",transition:"all .15s"}}>
+            <span style={{fontSize:16}}>{v.emoji}</span>
+            <span className="nav-tab-label">{v.label}</span>
+          </button>;
+        })}
 
-          {/* Right controls */}
-          <div className="topbar-controls" style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,padding:"0 16px"}}>
-            <div style={{display:"flex",gap:6,fontSize:10}}>
-              {[[T.wit,"Witness"],[T.disc,"Discipleship"],[T.lead,"Leadership"]].map(([c,l])=>(
-                <span key={l} style={{background:`${c}22`,color:c,padding:"3px 8px",borderRadius:4,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",border:`1px solid ${c}44`}}>{l}</span>
-              ))}
-            </div>
-            <span style={{fontSize:11,color:navMuted,marginLeft:4}}>
-              <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
-            </span>
-            <button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
-              background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
-              border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
-              color:settings?.scriptUrl?"#86EFAC":"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",
-              fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
-              {settings?.scriptUrl?"🔗":"⚙"} <span style={{fontSize:11,fontWeight:600}}>{settings?.scriptUrl?"Sheets ✓":"Sheets"}</span>
-            </button>
-            <button onClick={()=>setTheme(t=>t==="dark"?"bright":"dark")} title="Toggle theme" style={{
-              background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
-              color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit",
-              display:"flex",alignItems:"center",gap:5}}>
-              {themeKey==="dark"?"☀":"🌙"} <span style={{fontSize:11,fontWeight:600}}>{themeKey==="dark"?"Light":"Dark"}</span>
-            </button>
+        {/* Right controls */}
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,padding:"0 16px"}}>
+          <div className="topbar-badges" style={{display:"flex",gap:6,fontSize:10}}>
+            {[[T.wit,"Witness"],[T.disc,"Discipleship"],[T.lead,"Leadership"]].map(([c,l])=>(
+              <span key={l} style={{background:`${c}22`,color:c,padding:"3px 8px",borderRadius:4,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",border:`1px solid ${c}44`}}>{l}</span>
+            ))}
           </div>
+          <span className="topbar-savedcount" style={{fontSize:11,color:navMuted,marginLeft:4}}>
+            <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
+          </span>
+          <button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
+            background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
+            border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
+            color:settings?.scriptUrl?"#86EFAC":"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",
+            fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
+            {settings?.scriptUrl?"🔗":"⚙"} <span className="topbar-btn-label" style={{fontSize:11,fontWeight:600}}>{settings?.scriptUrl?"Sheets ✓":"Sheets"}</span>
+          </button>
+          <button onClick={()=>setTheme(t=>t==="dark"?"bright":"dark")} title="Toggle theme" style={{
+            background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
+            color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit",
+            display:"flex",alignItems:"center",gap:5}}>
+            {themeKey==="dark"?"☀":"🌙"} <span className="topbar-btn-label" style={{fontSize:11,fontWeight:600}}>{themeKey==="dark"?"Light":"Dark"}</span>
+          </button>
         </div>
       </div>
 
       {/* Sub-header */}
-      <div style={{padding:"5px 18px 7px",borderTop:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.15)":T.border+"33"}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+      <div className="desktop-subheader" style={{padding:"5px 18px 7px",borderTop:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.15)":T.border+"33"}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <span style={{fontSize:11,color:navMuted}}>{VIEWS.find(v=>v.id===view)?.desc}</span>
         <span style={{fontSize:10,color:navMuted,fontStyle:"italic"}}>{T.mode==="bright"?"☀ GHAFES Brand Theme":"🌙 Dark Theme"}</span>
       </div>
@@ -1190,17 +1194,19 @@ export default function App(){
         * { color:#000!important; background:transparent!important; border-color:#ccc!important; }
       }
 
-      /* ── Mobile nav collapse ── */
+      /* ── Mobile: header stays, but shrinks to icon-only tabs and hides secondary chrome ── */
       @media (max-width: 720px) {
-        .topbar-row { flex-wrap:wrap; }
-        .hamburger-btn { display:flex!important; align-items:center; justify-content:center; }
-        .nav-collapsible {
-          flex-basis:100%; flex-direction:column; align-items:stretch;
-          max-height:0; overflow:hidden; transition:max-height .2s ease;
+        .nav-tab { padding:0 12px!important; }
+        .nav-tab-label { display:none; }
+        .topbar-badges, .topbar-savedcount, .topbar-btn-label, .desktop-subheader { display:none!important; }
+
+        .fv-sidebar-toggle { display:flex!important; align-items:center; justify-content:center; }
+        .fv-sidebar-overlay { display:block!important; }
+        .fv-sidebar {
+          position:absolute; top:0; left:0; bottom:0; width:200px;
+          transform:translateX(-100%); transition:transform .2s ease; z-index:30;
         }
-        .nav-collapsible.open { max-height:600px; }
-        .nav-collapsible button { padding:12px 18px!important; border-bottom:1px solid rgba(255,255,255,0.08)!important; }
-        .topbar-controls { flex-wrap:wrap; padding:10px 16px!important; margin-left:0!important; }
+        .fv-sidebar.open { transform:translateX(0); }
       }
     `}</style>
   </div>;
