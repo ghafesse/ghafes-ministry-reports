@@ -13,7 +13,9 @@ const FELLOWSHIPS = [
   "UCF Legon","GCF Legon","CMF Korlebu","AHCF Korlebu","CMF AHCF",
   "CMF ACM","CMF UHAS","AHCF UHAS","GHAFES UHAS","HCF Korlebu",
   "GHAFES PU","GHAFES UPSA","GHAFES Wisconsin","GHAFES UCF City Campus",
-  "LCF GSL","GHAFES RMUCF","PASAG CF UHAS","GHAFES HTUCF","GHAFES VVU","CMF FH"
+  "LCF GSL","GHAFES RMUCF","PASAG CF UHAS","GHAFES HTUCF","GHAFES VVU","CMF FH",
+  "GHAFES TTS","GHAFES UHAS Hohoe","GHAFES KTUCF","GHAFES Ashesi",
+  "GHAFES UCF UESD","GHAFES ATUCF","GHAFES GhanaCU"
 ];
 const MONTHS  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const YEARS   = ["2024","2025","2026","2027"];
@@ -1068,8 +1070,9 @@ export default function App(){
   const [reps,setReps]         = useState({});
   const [settings,setSettings] = useState({});
   const [ready,setReady]       = useState(false);
-  const [themeKey,setTheme]    = useState("dark");
+  const [themeKey,setTheme]    = useState("bright");
   const [showSettings,setShowSettings] = useState(false);
+  const [navOpen,setNavOpen]   = useState(false);
 
   const T = themeKey==="bright" ? BRIGHT : DARK;
 
@@ -1090,7 +1093,7 @@ export default function App(){
 
     {/* TOP BAR */}
     <div style={{background:navBg,borderBottom:`1px solid ${T.mode==="bright"?"#1E3A6E":T.border}`,flexShrink:0,zIndex:50}}>
-      <div style={{display:"flex",alignItems:"stretch"}}>
+      <div className="topbar-row" style={{display:"flex",alignItems:"stretch"}}>
 
         {/* Logo */}
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 18px",borderRight:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.2)":T.border}`,minWidth:180}}>
@@ -1099,45 +1102,54 @@ export default function App(){
             <div style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:"-0.3px",lineHeight:1}}>GHAFES</div>
             <div style={{fontSize:10,color:T.mode==="bright"?"rgba(255,255,255,0.65)":"#7DB992",letterSpacing:"0.4px"}}>Ministry Reports</div>
           </div>
+
+          {/* Hamburger — only shown on narrow/mobile viewports via CSS */}
+          <button className="hamburger-btn" onClick={()=>setNavOpen(o=>!o)} aria-label="Toggle menu" style={{
+            marginLeft:"auto",display:"none",background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
+            color:"#fff",borderRadius:8,padding:"7px 10px",cursor:"pointer",fontSize:16,fontFamily:"inherit"}}>
+            {navOpen?"✕":"☰"}
+          </button>
         </div>
 
-        {/* Nav tabs */}
-        {VIEWS.map(v=>{
-          const active=view===v.id;
-          return <button key={v.id} onClick={()=>setView(v.id)} style={{
-            display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
-            background:"transparent",
-            borderBottom:active?`3px solid ${T.mode==="bright"?"#56C8E8":"#16A34A"}`:"3px solid transparent",
-            color:active?"#fff":navMuted,
-            fontSize:13,fontWeight:active?700:500,fontFamily:"inherit",transition:"all .15s"}}>
-            <span style={{fontSize:16}}>{v.emoji}</span>
-            <span>{v.label}</span>
-          </button>;
-        })}
+        {/* Nav tabs + right controls — collapsible as a group on mobile */}
+        <div className={"nav-collapsible"+(navOpen?" open":"")} style={{display:"flex",alignItems:"stretch",flex:1}}>
+          {VIEWS.map(v=>{
+            const active=view===v.id;
+            return <button key={v.id} onClick={()=>{setView(v.id);setNavOpen(false);}} style={{
+              display:"flex",alignItems:"center",gap:8,padding:"0 20px",cursor:"pointer",border:"none",
+              background:"transparent",
+              borderBottom:active?`3px solid ${T.mode==="bright"?"#56C8E8":"#16A34A"}`:"3px solid transparent",
+              color:active?"#fff":navMuted,
+              fontSize:13,fontWeight:active?700:500,fontFamily:"inherit",transition:"all .15s"}}>
+              <span style={{fontSize:16}}>{v.emoji}</span>
+              <span>{v.label}</span>
+            </button>;
+          })}
 
-        {/* Right controls */}
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,padding:"0 16px"}}>
-          <div style={{display:"flex",gap:6,fontSize:10}}>
-            {[[T.wit,"Witness"],[T.disc,"Discipleship"],[T.lead,"Leadership"]].map(([c,l])=>(
-              <span key={l} style={{background:`${c}22`,color:c,padding:"3px 8px",borderRadius:4,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",border:`1px solid ${c}44`}}>{l}</span>
-            ))}
+          {/* Right controls */}
+          <div className="topbar-controls" style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,padding:"0 16px"}}>
+            <div style={{display:"flex",gap:6,fontSize:10}}>
+              {[[T.wit,"Witness"],[T.disc,"Discipleship"],[T.lead,"Leadership"]].map(([c,l])=>(
+                <span key={l} style={{background:`${c}22`,color:c,padding:"3px 8px",borderRadius:4,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",border:`1px solid ${c}44`}}>{l}</span>
+              ))}
+            </div>
+            <span style={{fontSize:11,color:navMuted,marginLeft:4}}>
+              <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
+            </span>
+            <button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
+              background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
+              border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
+              color:settings?.scriptUrl?"#86EFAC":"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",
+              fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
+              {settings?.scriptUrl?"🔗":"⚙"} <span style={{fontSize:11,fontWeight:600}}>{settings?.scriptUrl?"Sheets ✓":"Sheets"}</span>
+            </button>
+            <button onClick={()=>setTheme(t=>t==="dark"?"bright":"dark")} title="Toggle theme" style={{
+              background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
+              color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit",
+              display:"flex",alignItems:"center",gap:5}}>
+              {themeKey==="dark"?"☀":"🌙"} <span style={{fontSize:11,fontWeight:600}}>{themeKey==="dark"?"Light":"Dark"}</span>
+            </button>
           </div>
-          <span style={{fontSize:11,color:navMuted,marginLeft:4}}>
-            <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
-          </span>
-          <button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
-            background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
-            border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
-            color:settings?.scriptUrl?"#86EFAC":"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",
-            fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",gap:5}}>
-            {settings?.scriptUrl?"🔗":"⚙"} <span style={{fontSize:11,fontWeight:600}}>{settings?.scriptUrl?"Sheets ✓":"Sheets"}</span>
-          </button>
-          <button onClick={()=>setTheme(t=>t==="dark"?"bright":"dark")} title="Toggle theme" style={{
-            background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",
-            color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit",
-            display:"flex",alignItems:"center",gap:5}}>
-            {themeKey==="dark"?"☀":"🌙"} <span style={{fontSize:11,fontWeight:600}}>{themeKey==="dark"?"Light":"Dark"}</span>
-          </button>
         </div>
       </div>
 
@@ -1176,6 +1188,19 @@ export default function App(){
       @media print {
         body { background:white!important; }
         * { color:#000!important; background:transparent!important; border-color:#ccc!important; }
+      }
+
+      /* ── Mobile nav collapse ── */
+      @media (max-width: 720px) {
+        .topbar-row { flex-wrap:wrap; }
+        .hamburger-btn { display:flex!important; align-items:center; justify-content:center; }
+        .nav-collapsible {
+          flex-basis:100%; flex-direction:column; align-items:stretch;
+          max-height:0; overflow:hidden; transition:max-height .2s ease;
+        }
+        .nav-collapsible.open { max-height:600px; }
+        .nav-collapsible button { padding:12px 18px!important; border-bottom:1px solid rgba(255,255,255,0.08)!important; }
+        .topbar-controls { flex-wrap:wrap; padding:10px 16px!important; margin-left:0!important; }
       }
     `}</style>
   </div>;
