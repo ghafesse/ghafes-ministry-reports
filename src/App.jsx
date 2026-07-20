@@ -822,14 +822,27 @@ function FellowshipView({allReports,onSave,settings,T}){
 // ═══════════════════════════════════════════════════════
 function CMCView({allReports,onSave,settings,T}){
   const [cmc,setCMC]=useState(mkCMC());
+  // Arbitrary, freely-editable list of fellowships this CMC report covers.
+  // Defaults to no preselection — the user builds the list themselves,
+  // optionally jump-starting it from a Zone/Station preset below.
+  const [coords,setCoords]=useState([]);
   const [zone,setZone]=useState("South East Zone");
   const [station,setStation]=useState(ZONES["South East Zone"][0].name);
   const [msg,setMsg]=useState("");
+  const [fSearch,setFSearch]=useState("");
 
   const updHdr=(f,v)=>setCMC(p=>({...p,hdr:{...p.hdr,[f]:v}}));
-  const stObj=ZONES[zone]?.find(s=>s.name===station);
-  const coords=stObj?.fellowships||[];
   const {month,year}=cmc.hdr;
+
+  const toggleFellowship=(f)=>setCoords(p=>p.includes(f)?p.filter(x=>x!==f):[...p,f]);
+  const loadPreset=()=>{
+    const stObj=ZONES[zone]?.find(s=>s.name===station);
+    if(!stObj)return;
+    setCoords(p=>Array.from(new Set([...p,...stObj.fellowships])));
+  };
+  const clearAll=()=>setCoords([]);
+  const selectAll=()=>setCoords(FELLOWSHIPS.slice());
+  const visibleFellowships=FELLOWSHIPS.filter(f=>f.toLowerCase().includes(fSearch.toLowerCase()));
 
   const fdList=coords.map(f=>{
     const r=allReports[rKey(f,month,year)];
@@ -863,13 +876,42 @@ function CMCView({allReports,onSave,settings,T}){
     </Card>
 
     <Card T={T} accent={T.prog}>
-      <Grid cols="1fr 1fr">
-        <Sel label="Zone" v={zone} set={z=>{setZone(z);setStation(ZONES[z][0].name);}} opts={Object.keys(ZONES)} T={T}/>
-        <Sel label="CMC Station" v={station} set={setStation} opts={(ZONES[zone]||[]).map(s=>s.name)} T={T}/>
-      </Grid>
-      <div style={{fontSize:12,color:T.muted,marginTop:2}}>
-        Coordinating <strong style={{color:T.text}}>{coords.length}</strong> fellowship(s): <span style={{color:T.prog}}>{coords.join(", ")}</span>
-        {" · "}<span style={{fontWeight:700,color:submitted===coords.length?T.green:T.wit}}>{submitted}/{coords.length} submitted</span>
+      <div style={{fontSize:11,fontWeight:800,color:T.prog,textTransform:"uppercase",letterSpacing:"1px",marginBottom:10}}>Fellowships Coordinated by this CMC</div>
+      <div style={{fontSize:11.5,color:T.muted,marginBottom:12,lineHeight:1.5}}>
+        Tick any combination of fellowships below — a CMC isn't limited to a fixed station list. Optionally use a Zone/Station preset to jump-start the selection, then add or remove individual fellowships freely.
+      </div>
+
+      {/* Optional preset loader */}
+      <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap",marginBottom:14,padding:"10px 12px",background:T.mode==="bright"?"#F8FAFC":"rgba(255,255,255,0.03)",borderRadius:10,border:`1px dashed ${T.border}`}}>
+        <div style={{flex:"1 1 140px"}}><Sel label="Zone" v={zone} set={z=>{setZone(z);setStation(ZONES[z][0].name);}} opts={Object.keys(ZONES)} mb={0} T={T}/></div>
+        <div style={{flex:"1 1 160px"}}><Sel label="Station Preset" v={station} set={setStation} opts={(ZONES[zone]||[]).map(s=>s.name)} mb={0} T={T}/></div>
+        <button onClick={loadPreset} style={{background:T.progBg,border:`1.5px solid ${T.prog}55`,color:T.prog,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ Add Preset Group</button>
+        <button onClick={selectAll} style={{background:"transparent",border:`1.5px solid ${T.border}`,color:T.muted,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Select All</button>
+        <button onClick={clearAll} style={{background:"transparent",border:`1.5px solid ${T.border}`,color:T.muted,padding:"9px 14px",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Clear</button>
+      </div>
+
+      {/* Search + checklist */}
+      <input type="text" value={fSearch} onChange={e=>setFSearch(e.target.value)} placeholder="Search fellowships…"
+        style={inpStyle(T,{marginBottom:10})}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:6,maxHeight:220,overflowY:"auto",padding:"2px 2px 4px"}}>
+        {visibleFellowships.map(f=>{
+          const checked=coords.includes(f);
+          return <label key={f} onClick={()=>toggleFellowship(f)} style={{
+            display:"flex",alignItems:"center",gap:8,cursor:"pointer",
+            background:checked?(T.mode==="bright"?"#EAF7EF":T.glow):T.inputBg,
+            border:`1px solid ${checked?T.green:T.border}`,borderRadius:8,
+            padding:"7px 10px",fontSize:12.5,color:checked?T.green:T.text,fontWeight:checked?700:500}}>
+            <input type="checkbox" checked={checked} onChange={()=>toggleFellowship(f)} style={{accentColor:T.green,cursor:"pointer"}}/>
+            {f}
+          </label>;
+        })}
+        {visibleFellowships.length===0&&<div style={{gridColumn:"1/-1",fontSize:12,color:T.muted,padding:"8px 2px"}}>No fellowships match "{fSearch}".</div>}
+      </div>
+
+      <div style={{fontSize:12,color:T.muted,marginTop:12}}>
+        Coordinating <strong style={{color:T.text}}>{coords.length}</strong> fellowship(s)
+        {coords.length>0&&<>: <span style={{color:T.prog}}>{coords.join(", ")}</span></>}
+        {coords.length>0&&<>{" · "}<span style={{fontWeight:700,color:submitted===coords.length?T.green:T.wit}}>{submitted}/{coords.length} submitted</span></>}
       </div>
     </Card>
 
@@ -879,9 +921,12 @@ function CMCView({allReports,onSave,settings,T}){
 
     <Card T={T} accent={T.disc}>
       <div style={{fontSize:12,fontWeight:800,color:T.disc,textTransform:"uppercase",letterSpacing:"0.8px",marginBottom:12}}>Fellowship Monthly Data — {month} {year}</div>
+      {coords.length===0?(
+        <div style={{padding:"18px 8px",color:T.muted,fontSize:12.5,fontStyle:"italic"}}>No fellowships selected yet — tick some above to pull in their {month} {year} data.</div>
+      ):
       <div style={{overflowX:"auto"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-          <thead><tr>{["Fellowship","Mbsp","Attd","Aware","Gospel Exp.","Converts","Prayer","Daily QT","CDF Mtgs","SGBS","Status"].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Fellowship","Mbsp","Attd","Aware","Gospel Exp.","Converts","Prayer","Daily QT","CDF Mtgs","SGBS","Status",""].map(h=><th key={h} style={th}>{h}</th>)}</tr></thead>
           <tbody>
             {fdList.map(fd=><tr key={fd.fellowship} style={{borderBottom:`1px solid ${T.border}22`}}>
               <td style={{padding:"9px 8px",color:T.text,fontWeight:600}}>{fd.fellowship}</td>
@@ -892,16 +937,20 @@ function CMCView({allReports,onSave,settings,T}){
                 <td style={{padding:"9px 8px",color:T.disc}}>{fd.t.cdfMet||0}</td>
                 <td style={{padding:"9px 8px",color:T.pry}}>{fd.t.sgbs||0}</td>
                 <td style={{padding:"9px 8px"}}><span style={{background:`${T.green}22`,color:T.green,padding:"2px 8px",borderRadius:4,fontSize:10,fontWeight:700}}>✓</span></td>
-              </>):<td colSpan={10} style={{padding:"9px 8px",color:"#EF4444",fontSize:11,fontStyle:"italic"}}>No report for {month} {year}</td>}
+              </>):<td colSpan={9} style={{padding:"9px 8px",color:"#EF4444",fontSize:11,fontStyle:"italic"}}>No report for {month} {year}</td>}
+              <td style={{padding:"9px 8px"}}>
+                <button onClick={()=>toggleFellowship(fd.fellowship)} title="Remove from this CMC report"
+                  style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:14,fontWeight:700,padding:"2px 6px"}}>×</button>
+              </td>
             </tr>)}
             <tr style={{borderTop:`2px solid ${T.disc}44`}}>
               <td style={{padding:"10px 8px",color:T.disc,fontWeight:800}}>TOTAL</td>
               {[grand.membership,grand.attendance,grand.awareness,grand.exposure,grand.converts,grand.prayerEng,grand.dailyQT,grand.cdfMet,grand.sgbs].map((v,i)=><td key={i} style={{padding:"10px 8px",fontWeight:700,color:i>=2&&i<=4?T.wit:i>=5?T.pry:T.text}}>{v||0}</td>)}
-              <td/>
+              <td/><td/>
             </tr>
           </tbody>
         </table>
-      </div>
+      </div>}
     </Card>
 
     <LeadSection d={cmc.lead} set={v=>setCMC(p=>({...p,lead:v}))} T={T}/>
