@@ -1275,7 +1275,7 @@ export default function App(){
   const navText  = T.mode==="bright"?"#fff":T.text;
   const navMuted = T.mode==="bright"?"rgba(255,255,255,0.6)":T.muted;
 
-  return <div style={{height:"100vh",display:"flex",flexDirection:"column",background:T.bg,fontFamily:"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",color:T.text,overflow:"hidden"}}>
+  return <div className="app-shell" style={{display:"flex",flexDirection:"column",background:T.bg,fontFamily:"system-ui,-apple-system,'Segoe UI',Roboto,sans-serif",color:T.text,overflow:"hidden"}}>
 
     {/* TOP BAR */}
     <div style={{background:navBg,borderBottom:`1px solid ${T.mode==="bright"?"#1E3A6E":T.border}`,flexShrink:0,zIndex:50}}>
@@ -1366,11 +1366,19 @@ export default function App(){
       )}
     </div>
 
+    {/* FOOTER */}
+    <div style={{flexShrink:0,background:navBg,borderTop:`1px solid ${T.mode==="bright"?"rgba(255,255,255,0.15)":T.border}`,padding:"7px 18px",textAlign:"center"}}>
+      <span style={{fontFamily:"'Cormorant Garamond',Georgia,serif",fontStyle:"italic",fontWeight:600,fontSize:13.5,letterSpacing:"0.3px",color:T.mode==="bright"?"rgba(255,255,255,0.85)":"#9FD8B5"}}>
+        Knowing Christ and Making Him Known!
+      </span>
+    </div>
+
     {showStaffGate&&<StaffGateModal unlocked={unlocked} onUnlock={handleUnlock} onClose={()=>setShowStaffGate(false)} onGoTo={goToRole} T={T}/>}
     {showSettings&&unlocked.sheets&&<SettingsModal settings={settings} onSave={handleSaveSettings} onClose={()=>setShowSettings(false)} T={T}/>}
 
     <style>{`
       * { box-sizing:border-box; }
+      .app-shell { height:100vh; height:100dvh; }
       input[type=number]::-webkit-inner-spin-button { opacity:0.4; }
       ::-webkit-scrollbar { width:6px; height:6px; }
       ::-webkit-scrollbar-track { background:transparent; }
@@ -1399,7 +1407,7 @@ export default function App(){
         .fv-sidebar.open { transform:translateX(0); }
 
         /* Content padding — reclaim space on narrow screens */
-        .app-main { padding:12px 12px!important; }
+        .app-main { padding:12px 12px calc(20px + env(safe-area-inset-bottom, 0px))!important; }
         .app-card { padding:12px 13px!important; }
 
         /* Grids collapse to 2 columns on tablets/large phones, 1 on narrow phones */
