@@ -874,6 +874,7 @@ function FellowshipView({allReports,onSave,settings,T}){
   const [isExisting,setIsExisting]=useState(false);
   const [showPastReports,setShowPastReports]=useState(false);
   const mounted=useRef(false);
+  const prevFellowship=useRef("");
   const savedSnapshot=useRef(JSON.stringify(mkReport()));
 
   const updHdr=useCallback((f,v)=>setReport(p=>({...p,hdr:{...p.hdr,[f]:v}})),[]);
@@ -886,9 +887,18 @@ function FellowshipView({allReports,onSave,settings,T}){
   // Whenever Fellowship / Month / Year change, sync the form to whatever's
   // actually saved for that combination — otherwise switching to review an
   // old report shows a blank form, and saving would silently wipe it out.
+  // If nothing is saved yet for the new combination, only wipe the in-progress
+  // data when the fellowship itself changed (a genuinely different report) —
+  // a month/year tweak alone must never discard week data someone is mid-typing.
   useEffect(()=>{
-    if(!mounted.current){mounted.current=true;return;}
+    if(!mounted.current){
+      mounted.current=true;
+      prevFellowship.current=report.hdr.fellowship;
+      return;
+    }
     const {fellowship,month,year}=report.hdr;
+    const fellowshipChanged=fellowship!==prevFellowship.current;
+    prevFellowship.current=fellowship;
     if(!fellowship||fellowship==="-- Select --"){setIsExisting(false);return;}
     const key=rKey(fellowship,month,year);
     const existing=allReports[key];
@@ -897,8 +907,12 @@ function FellowshipView({allReports,onSave,settings,T}){
       savedSnapshot.current=JSON.stringify(existing);
       setIsExisting(true);
       showMsgRef.current(`📄 Loaded your existing ${month} ${year} report for ${fellowship}.`);
-    } else {
+    } else if(fellowshipChanged){
       setReport(p=>({...mkReport(),hdr:{...mkReport().hdr,fellowship,month,year,studentName:p.hdr.studentName,presidentName:p.hdr.presidentName}}));
+      setIsExisting(false);
+    } else {
+      // Same fellowship, just a month/year tweak with nothing saved for it yet —
+      // keep whatever's already been typed in this session.
       setIsExisting(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
