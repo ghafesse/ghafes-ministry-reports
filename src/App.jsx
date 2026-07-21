@@ -274,8 +274,13 @@ function Field({label,children,mb=12,T}){ return <div style={{marginBottom:mb}}>
 function inpStyle(T,extra={}){ return {width:"100%",background:T.inputBg,border:`1px solid ${T.border}`,borderRadius:8,color:T.text,padding:"9px 11px",fontSize:13.5,outline:"none",boxSizing:"border-box",fontFamily:"inherit",...extra}; }
 
 function NIn({label,v,set,mb,T}){
+  const handleChange=(e)=>{
+    const val=e.target.value;
+    if(val===""){set("");return;}
+    if(/^\d*\.?\d*$/.test(val))set(val); // digits only — blocks "-" and stray letters
+  };
   return <Field label={label} mb={mb} T={T}>
-    <input type="number" min="0" value={v} onChange={e=>set(e.target.value)} style={inpStyle(T)}
+    <input type="number" min="0" inputMode="numeric" value={v} onChange={handleChange} style={inpStyle(T)}
       onFocus={e=>e.target.style.borderColor=T.borderFocus} onBlur={e=>e.target.style.borderColor=T.border}/>
   </Field>;
 }
@@ -440,6 +445,46 @@ function StaffGateModal({unlocked,onUnlock,onClose,onGoTo,T}){
           </div>;
         })}
         <div style={{fontSize:10.5,color:T.sub,textAlign:"center"}}>Unlocked areas stay unlocked until you close this browser tab.</div>
+      </div>
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+// PAST REPORTS BROWSER — lets a fellowship see which months
+// already have a saved report, and jump straight to one
+// ═══════════════════════════════════════════════════════
+function PastReportsModal({fellowship,allReports,onPick,onClose,T}){
+  const boxSt = { position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16 };
+  const panelSt = { background:T.mode==="bright"?"#FFFFFF":"#0D1525",border:`1px solid ${T.border}`,borderRadius:16,width:"100%",maxWidth:420,maxHeight:"80vh",overflow:"auto",boxShadow:"0 24px 80px rgba(0,0,0,0.5)" };
+  const rows=[];
+  [...YEARS].reverse().forEach(year=>MONTHS.forEach(month=>{
+    const r=allReports[rKey(fellowship,month,year)];
+    if(r)rows.push({month,year,membership:totals(r.weeks).membership||0});
+  }));
+  return <div style={boxSt} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+    <div style={panelSt}>
+      <div style={{background:"#1E3A6E",padding:"18px 24px",borderRadius:"16px 16px 0 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div>
+          <div style={{fontSize:16,fontWeight:800,color:"#fff"}}>📚 Past Reports</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",marginTop:3}}>{fellowship}</div>
+        </div>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:18,fontWeight:700,fontFamily:"inherit"}}>×</button>
+      </div>
+      <div style={{padding:18}}>
+        {rows.length===0
+          ?<div style={{fontSize:12.5,color:T.muted,textAlign:"center",padding:"20px 8px"}}>No saved reports yet for this fellowship.</div>
+          :<div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {rows.map(r=>(
+              <button key={r.month+r.year} onClick={()=>{onPick(r.month,r.year);onClose();}} style={{
+                display:"flex",alignItems:"center",justifyContent:"space-between",width:"100%",textAlign:"left",
+                background:T.mode==="bright"?"#F8FAFC":"rgba(255,255,255,0.04)",border:`1px solid ${T.border}`,
+                borderRadius:9,padding:"10px 14px",cursor:"pointer",fontFamily:"inherit"}}>
+                <span style={{fontSize:13,fontWeight:700,color:T.text}}>{r.month} {r.year}</span>
+                <span style={{fontSize:11,color:T.muted}}>{r.membership} members reported →</span>
+              </button>
+            ))}
+          </div>}
       </div>
     </div>
   </div>;
@@ -747,7 +792,7 @@ function buildFellowshipSheet(report){
     [],["THANK YOU FOR YOUR FAITHFULNESS"]
   ];
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"]=Array(10).fill({wch:22});
+  ws["!cols"]=Array(10).fill({wch:22}).map((c,i)=>i===7?{wch:50}:c);
   return ws;
 }
 function buildCMCSheet(cmcReport,fdList){
@@ -790,7 +835,7 @@ function buildCMCSheet(cmcReport,fdList){
     [],["THANK YOU FOR YOUR FAITHFULNESS"]
   ];
   const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"]=Array(10).fill({wch:22});
+  ws["!cols"]=Array(10).fill({wch:22}).map((c,i)=>i===7?{wch:50}:c);
   return ws;
 }
 function buildZonalSheet(zoneName,month,year,stationGroups){
@@ -826,16 +871,57 @@ function FellowshipView({allReports,onSave,settings,T}){
   const [msg,setMsg]=useState({text:"",ok:true});
   const [syncing,setSyncing]=useState(false);
   const [sidebarOpen,setSidebarOpen]=useState(false);
+  const [isExisting,setIsExisting]=useState(false);
+  const [showPastReports,setShowPastReports]=useState(false);
+  const mounted=useRef(false);
+  const savedSnapshot=useRef(JSON.stringify(mkReport()));
 
   const updHdr=useCallback((f,v)=>setReport(p=>({...p,hdr:{...p.hdr,[f]:v}})),[]);
   const updWeek=useCallback((wk,s,val)=>setReport(p=>({...p,weeks:{...p.weeks,[wk]:{...p.weeks[wk],[s]:val}}})),[]);
 
   const showMsg=(text,ok=true)=>{setMsg({text,ok});setTimeout(()=>setMsg({text:"",ok:true}),3000);};
+  const showMsgRef=useRef(showMsg);
+  showMsgRef.current=showMsg;
+
+  // Whenever Fellowship / Month / Year change, sync the form to whatever's
+  // actually saved for that combination — otherwise switching to review an
+  // old report shows a blank form, and saving would silently wipe it out.
+  useEffect(()=>{
+    if(!mounted.current){mounted.current=true;return;}
+    const {fellowship,month,year}=report.hdr;
+    if(!fellowship||fellowship==="-- Select --"){setIsExisting(false);return;}
+    const key=rKey(fellowship,month,year);
+    const existing=allReports[key];
+    if(existing){
+      setReport(existing);
+      savedSnapshot.current=JSON.stringify(existing);
+      setIsExisting(true);
+      showMsgRef.current(`📄 Loaded your existing ${month} ${year} report for ${fellowship}.`);
+    } else {
+      setReport(p=>({...mkReport(),hdr:{...mkReport().hdr,fellowship,month,year,studentName:p.hdr.studentName,presidentName:p.hdr.presidentName}}));
+      setIsExisting(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[report.hdr.fellowship,report.hdr.month,report.hdr.year]);
+
+  // Warn before leaving the tab if there are unsaved changes
+  useEffect(()=>{
+    const handler=(e)=>{
+      if(JSON.stringify(report)!==savedSnapshot.current){
+        e.preventDefault();
+        e.returnValue="";
+      }
+    };
+    window.addEventListener("beforeunload",handler);
+    return ()=>window.removeEventListener("beforeunload",handler);
+  },[report]);
 
   const handleSave=async()=>{
     if(!report.hdr.fellowship){showMsg("⚠ Select a fellowship first",false);return;}
     const key=rKey(report.hdr.fellowship,report.hdr.month,report.hdr.year);
     await onSave({...allReports,[key]:report});
+    savedSnapshot.current=JSON.stringify(report);
+    setIsExisting(true);
 
     if(settings?.scriptUrl){
       setSyncing(true);
@@ -917,7 +1003,17 @@ function FellowshipView({allReports,onSave,settings,T}){
       <div className="app-card" style={{background:T.mode==="bright"?"linear-gradient(135deg,#EBF5FF,#DBEAFE)":"linear-gradient(135deg,rgba(22,163,74,0.12),rgba(202,138,4,0.08))",
         border:`1px solid ${T.mode==="bright"?"#BFDBFE":T.border}`,borderRadius:14,padding:"16px 18px",marginBottom:14,
         boxShadow:T.mode==="bright"?"0 2px 8px rgba(0,0,0,0.06)":"none"}}>
-        <div style={{fontSize:11,fontWeight:800,color:T.mode==="bright"?"#1E3A6E":T.green,textTransform:"uppercase",letterSpacing:"1px",marginBottom:12}}>Report Header</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12,flexWrap:"wrap",gap:8}}>
+          <span style={{fontSize:11,fontWeight:800,color:T.mode==="bright"?"#1E3A6E":T.green,textTransform:"uppercase",letterSpacing:"1px"}}>Report Header</span>
+          {report.hdr.fellowship&&report.hdr.fellowship!=="-- Select --"&&(
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              {isExisting
+                ?<span style={{fontSize:10.5,fontWeight:700,color:T.mode==="bright"?"#1D4ED8":T.disc,background:T.mode==="bright"?"#DBEAFE":T.discBg,padding:"3px 10px",borderRadius:20}}>📄 Editing Existing Report</span>
+                :<span style={{fontSize:10.5,fontWeight:700,color:T.mode==="bright"?"#15803D":T.green,background:T.mode==="bright"?"#DCFCE7":T.glow,padding:"3px 10px",borderRadius:20}}>✨ New Report</span>}
+              <button onClick={()=>setShowPastReports(true)} style={{fontSize:10.5,fontWeight:700,color:T.prog,background:T.progBg,border:`1px solid ${T.prog}44`,padding:"3px 10px",borderRadius:20,cursor:"pointer",fontFamily:"inherit"}}>📚 Past Reports</button>
+            </div>
+          )}
+        </div>
         <Grid cols="1fr 1fr 1fr">
           <Sel label="Fellowship" v={report.hdr.fellowship} set={v=>updHdr("fellowship",v)} opts={["-- Select --",...FELLOWSHIPS]} T={T}/>
           <TIn label="Student Name" v={report.hdr.studentName} set={v=>updHdr("studentName",v)} ph="Your full name" T={T}/>
@@ -1001,6 +1097,9 @@ function FellowshipView({allReports,onSave,settings,T}){
         </>}
       </div>
     </div>
+    {showPastReports&&<PastReportsModal fellowship={report.hdr.fellowship} allReports={allReports}
+      onPick={(month,year)=>{setReport(p=>({...p,hdr:{...p.hdr,month,year}}));}}
+      onClose={()=>setShowPastReports(false)} T={T}/>}
   </div>;
 }
 
@@ -1291,6 +1390,38 @@ export default function App(){
   const handleSave    = useCallback(async nr=>{setReps(nr);await saveData(nr);},[]);
   const handleSaveSettings = useCallback(async s=>{setSettings(s);await saveSettings(s);setShowSettings(false);},[]);
 
+  const importInputRef = useRef(null);
+  const [backupMsg,setBackupMsg] = useState("");
+  const exportBackup=()=>{
+    const blob=new Blob([JSON.stringify(reps,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=`GHAFES_Backup_${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  const importBackup=(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async(ev)=>{
+      try{
+        const imported=JSON.parse(ev.target.result);
+        if(typeof imported!=="object"||Array.isArray(imported))throw new Error("bad shape");
+        const merged={...reps,...imported};
+        setReps(merged);
+        await saveData(merged);
+        setBackupMsg(`✓ Restored ${Object.keys(imported).length} report(s).`);
+      }catch{
+        setBackupMsg("⚠ That file doesn't look like a valid GHAFES backup.");
+      }
+      setTimeout(()=>setBackupMsg(""),4000);
+    };
+    reader.readAsText(file);
+    e.target.value="";
+  };
+
   const repCount=Object.keys(reps).length;
 
   const navBg    = T.mode==="bright"?"#1E3A6E":T.navBg;
@@ -1345,6 +1476,20 @@ export default function App(){
           <span className="topbar-savedcount" style={{fontSize:11,color:navMuted,marginLeft:4}}>
             <span style={{color:T.mode==="bright"?"#86EFAC":T.greenLt,fontWeight:700}}>{repCount}</span> saved
           </span>
+          {backupMsg&&<span style={{fontSize:10.5,fontWeight:600,color:backupMsg.startsWith("✓")?(T.mode==="bright"?"#86EFAC":T.greenLt):"#FCA5A5"}}>{backupMsg}</span>}
+          <button onClick={exportBackup} title="Download a backup of all saved reports on this device" style={{
+            background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",
+            borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:13,fontFamily:"inherit",
+            display:"flex",alignItems:"center",gap:5}}>
+            ⬇ <span className="topbar-btn-label" style={{fontSize:11,fontWeight:600}}>Backup</span>
+          </button>
+          <input ref={importInputRef} type="file" accept="application/json" onChange={importBackup} style={{display:"none"}}/>
+          <button onClick={()=>importInputRef.current?.click()} title="Restore reports from a backup file" style={{
+            background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",
+            borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:13,fontFamily:"inherit",
+            display:"flex",alignItems:"center",gap:5}}>
+            ⬆ <span className="topbar-btn-label" style={{fontSize:11,fontWeight:600}}>Restore</span>
+          </button>
           {unlocked.sheets&&<button onClick={()=>setShowSettings(true)} title="Google Sheets Settings" style={{
             background:settings?.scriptUrl?(T.mode==="bright"?"rgba(134,239,172,0.2)":T.glow):"rgba(255,255,255,0.1)",
             border:`1px solid ${settings?.scriptUrl?"rgba(134,239,172,0.5)":"rgba(255,255,255,0.2)"}`,
