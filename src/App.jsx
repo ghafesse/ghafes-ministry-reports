@@ -634,17 +634,21 @@ function LeadSection({d,set,T}){
   </>;
 }
 function ProgSection({zonalProg,majorProg,programs,setZonal,setMajor,setProgs,T}){
-  const addProg=()=>setProgs([...programs,{name:"",level:"Local",hostLCF:"",participants:"",exposure:"",converts:"",resourcePersons:""}]);
+  const addProg=()=>setProgs([...programs,{name:"",level:"Local",hostLCF:"",participants:"",exposure:"",converts:"",resourcePersons:"",testimonies:[""]}]);
   const remProg=(i)=>setProgs(programs.filter((_,j)=>j!==i));
   const updProg=(i,f,v)=>setProgs(programs.map((p,j)=>j===i?{...p,[f]:v}:p));
+  const addTestimony=(i)=>setProgs(programs.map((p,j)=>j===i?{...p,testimonies:[...(p.testimonies||[]),""]}:p));
+  const updTestimony=(i,k,v)=>setProgs(programs.map((p,j)=>j===i?{...p,testimonies:(p.testimonies||[]).map((t,l)=>l===k?v:t)}:p));
+  const remTestimony=(i,k)=>setProgs(programs.map((p,j)=>j===i?{...p,testimonies:(p.testimonies||[]).filter((_,l)=>l!==k)}:p));
   return <>
     <SecHead title="Zonal, National & Major Programs" color={T.prog} icon="🌐" bg={T.progBg} T={T}/>
     <div style={{borderRadius:8,overflow:"hidden",border:`1px solid ${T.border}`,marginBottom:14}}>
       <YN label="Was there any Zonal or National Program this week?" v={zonalProg} set={setZonal} T={T}/>
       <YN label="Was there any Major Program held by your fellowship?" v={majorProg} set={setMajor} T={T}/>
     </div>
-    {programs.map((p,i)=>(
-      <Card key={i} accent={T.prog} T={T}>
+    {programs.map((p,i)=>{
+      const testimonies=p.testimonies&&p.testimonies.length?p.testimonies:[""];
+      return <Card key={i} accent={T.prog} T={T}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
           <span style={{fontSize:12,fontWeight:700,color:T.prog,textTransform:"uppercase",letterSpacing:"0.6px"}}>Activity {i+1}</span>
           <button onClick={()=>remProg(i)} style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
@@ -662,8 +666,20 @@ function ProgSection({zonalProg,majorProg,programs,setZonal,setMajor,setProgs,T}
           <NIn label="New Converts & Rededicants" v={p.converts} set={v=>updProg(i,"converts",v)} T={T}/>
           <TIn label="Resource Persons (& Topics)" v={p.resourcePersons} set={v=>updProg(i,"resourcePersons",v)} ph="Name (Topic)" T={T}/>
         </Grid>
-      </Card>
-    ))}
+
+        <div style={{height:4}}/>
+        <Lbl c="Testimonies & Impact Stories" T={T}/>
+        {testimonies.map((t,k)=>(
+          <div key={k} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+            <div style={{flex:1}}>
+              <TIn v={t} set={v=>updTestimony(i,k,v)} ph={`Testimony / impact story ${k+1}…`} multi T={T} mb={0}/>
+            </div>
+            {testimonies.length>1&&<button onClick={()=>remTestimony(i,k)} title="Remove this testimony" style={{background:"none",border:"none",color:"#DC2626",cursor:"pointer",fontSize:18,lineHeight:1,marginTop:6,flexShrink:0}}>×</button>}
+          </div>
+        ))}
+        <button onClick={()=>addTestimony(i)} style={{display:"flex",alignItems:"center",gap:6,background:"transparent",border:`1.5px dashed ${T.prog}66`,color:T.prog,borderRadius:8,padding:"7px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>＋ Add Another Testimony</button>
+      </Card>;
+    })}
     {programs.length<4&&<button onClick={addProg} style={{display:"flex",alignItems:"center",gap:6,background:T.progBg,border:`1.5px dashed ${T.prog}66`,color:T.prog,borderRadius:8,padding:"9px 16px",fontSize:12.5,cursor:"pointer",fontFamily:"inherit"}}>＋ Add Activity (max 4)</button>}
   </>;
 }
@@ -719,8 +735,11 @@ function buildFellowshipSheet(report){
     ["FRESH:",l.fresh,"FINAL:",l.final,"LLTS:",l.llts,"LEADERSHIP BLOCK:",l.leadBlock,"INTEGRITY SERIES:",l.integrity],
     [],["ZONAL, NATIONAL AND MAJOR FELLOWSHIP PROGRAMS"],
     ["Was there any Zonal or National Program This week?","","",report.zonalProg,"","Was there any Major Program?","","",report.majorProg],
-    [],["Name of Activity","Level","Organizing or Host LCF","Number of Participants","Number Exposed to the Gospel","New Converts and Rededicants","Resource Persons (And Topics)"],
-    ...(report.programs||[]).map(p=>[p.name,p.level,p.hostLCF,p.participants,p.exposure,p.converts,p.resourcePersons]),
+    [],["Name of Activity","Level","Organizing or Host LCF","Number of Participants","Number Exposed to the Gospel","New Converts and Rededicants","Resource Persons (And Topics)","Testimonies / Impact Stories"],
+    ...(report.programs||[]).map(p=>[p.name,p.level,p.hostLCF,p.participants,p.exposure,p.converts,p.resourcePersons,(p.testimonies||[]).filter(t=>t&&t.trim()).join("\n")]),
+    [],["TESTIMONIES & IMPACT STORIES (Full List)"],
+    ["Activity","#","Testimony / Impact Story"],
+    ...(report.programs||[]).flatMap(p=>(p.testimonies||[]).filter(t=>t&&t.trim()).map((t,k)=>[p.name||"(Unnamed Activity)",k+1,t])),
     [],["OTHER LCF REPORTS"],
     ["Fellowship Visits by Staff:",o.staffVisits,"","Associates as Resource Persons:",o.assocRP],
     ["MSPC Received:",o.mspc,"","Visits from Fellowship Alumni:",o.alumni],
@@ -759,8 +778,11 @@ function buildCMCSheet(cmcReport,fdList){
     ["FRESH:",l.fresh,"FINAL:",l.final,"LLTS:",l.llts,"LEADERSHIP BLOCK:",l.leadBlock,"INTEGRITY SERIES:",l.integrity],[],
     ["ZONAL, NATIONAL AND MAJOR FELLOWSHIP PROGRAMS"],
     ["Was there any Zonal or National Program?","","",cmcReport.zonalProg,"","Was there any Major Program?","","",cmcReport.majorProg],[],
-    ["Name of Activity","Level","Organizing or Host LCF","Participants","Gospel Exposure","New Converts","Resource Persons"],
-    ...(cmcReport.programs||[]).map(p=>[p.name,p.level,p.hostLCF,p.participants,p.exposure,p.converts,p.resourcePersons]),
+    ["Name of Activity","Level","Organizing or Host LCF","Participants","Gospel Exposure","New Converts","Resource Persons","Testimonies / Impact Stories"],
+    ...(cmcReport.programs||[]).map(p=>[p.name,p.level,p.hostLCF,p.participants,p.exposure,p.converts,p.resourcePersons,(p.testimonies||[]).filter(t=>t&&t.trim()).join("\n")]),
+    [],["TESTIMONIES & IMPACT STORIES (Full List)"],
+    ["Activity","#","Testimony / Impact Story"],
+    ...(cmcReport.programs||[]).flatMap(p=>(p.testimonies||[]).filter(t=>t&&t.trim()).map((t,k)=>[p.name||"(Unnamed Activity)",k+1,t])),
     [],["OTHER CMC REPORTS"],
     ["Fellowship Visits:",o.fellowVisits,"","Associates as Resource Persons:",o.assocRP],
     ["Associate Visits:",o.assocVisits,"","Associates Mapped Out:",o.assocMapped],
